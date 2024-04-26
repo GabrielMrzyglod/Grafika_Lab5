@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Zadanie grafika</title>
+
+<script src="glsim.js"></script>  <!-- load the OpenGL 1.1 simulation code -->
+
+<script>
+
+    let rotateX = 15;   // rotations of object about the axes
+    let rotateY = -15;
+    let rotateZ = 0;
+    let currentFunction = 1; // Default to the function from code 1
+    
+    // ------------------- functions for drawing the 3D spiral -------------------
+    
+    function drawSpiral() {
+        const numSpirals = 20;
+        const radius = 0.1;
+        const arcLength = 0.1 / numSpirals;
+        const numSteps = Math.ceil(2 * Math.PI * numSpirals / arcLength);
+
+        const angleStep = arcLength / radius;
+        const zStep = 0.001;
+
+        glBegin(GL_LINE_STRIP);
+        for (let i = 0; i <= numSteps; i++) {
+            let angle = i * angleStep;
+            let x = radius * Math.cos(angle);
+            let y = radius * Math.sin(angle);
+            let z = i * zStep;
+
+            // Interpolation of color based on the Z axis value
+            let green = Math.max(0, Math.min(1, 1 - z * 10)); // Green gradually decreases
+            let blue = Math.max(0, Math.min(1, z * 10 - 1)); // Blue gradually increases
+            let brown = Math.max(0, Math.min(1, z * 5 - 1)); // Brown gradually increases
+
+            glColor3f(brown, blue, green);
+            glVertex3f(x, y, z);
+        }
+        glEnd();
+    }
+  
+
+    
+
+
+    function drawThirteenSidedPolygon(r, g, b) {
+        glColor3f(r, g, b);
+        glBegin(GL_POLYGON);
+        let angle = 0;
+        for (let i = 0; i < 13; i++) {
+            angle = i * (2 * Math.PI) / 13;
+            glVertex3f(0.5 * Math.cos(angle), 0.5 * Math.sin(angle), -0.5); // vertex on the base
+        }
+        glEnd();
+    }
+    
+    function drawSideTriangle(angle1, angle2, color) {
+        glBegin(GL_TRIANGLES);
+        glColor3f(color[0], color[1], color[2]); // set color
+        glVertex3f(0, 0, 0.5);  // top vertex
+        glVertex3f(0.5 * Math.cos(angle1), 0.5 * Math.sin(angle1), -0.5); // vertex on the base
+        glVertex3f(0.5 * Math.cos(angle2), 0.5 * Math.sin(angle2), -0.5); // vertex on the base
+        glEnd();
+    }
+    
+    function spiral() {  
+        let numSegments = 100;
+        let numLoops = 10;
+        let heightStep = 1 / numSegments;
+        let radiusStep = 0.5 / numSegments;
+        
+        for (let i = 0; i < numSegments * numLoops; i++) {
+            glPushMatrix();
+            let height = i * heightStep;
+            let radius1 = height / 2;
+            let radius2 = (height + heightStep) / 2;
+            let angle1 = i * (2 * Math.PI) / numSegments;
+            let angle2 = (i + 1) * (2 * Math.PI) / numSegments;
+            let color = [Math.random(), Math.random(), Math.random()]; // random color for each segment
+            glTranslatef(0, 0, -height); // translate along z-axis
+            drawSpiralSegment(radius1, radius2, angle1, angle2, color);
+            glPopMatrix();
+        }
+    }
+
+    function pyramid(size) {  
+        glPushMatrix();
+        glScalef(size, size, size); 
+        
+        drawThirteenSidedPolygon(1, 0, 0); 
+
+        for (let i = 0; i < 13; i++) {
+            glPushMatrix();
+            glRotatef(i * (360 / 13), 0, 0, 1); 
+            let color = [Math.random(), Math.random(), Math.random()]; 
+            drawSideTriangle(i * (2 * Math.PI) / 13, (i + 1) * (2 * Math.PI) / 13, color);
+            glPopMatrix();
+        }
+        
+        glPopMatrix(); 
+    }
+    
+    // ----------------------------------------------------------------------
+    
+    function display() {  
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                
+        glLoadIdentity();             
+        glRotatef(rotateZ, 0, 0, 1);
+        glRotatef(rotateY, 0, 1, 0);
+        glRotatef(rotateX, 1, 0, 0);
+        
+        if (currentFunction === 1) {
+            drawSpiral();
+            spiral();
+        } else if (currentFunction === 2) {
+            pyramid(1);
+        }
+    }
+    
+    function initGL() {
+        glMatrixMode(GL_PROJECTION);
+        glOrtho(-1, 1, -1, 1, -1, 1);
+        glMatrixMode(GL_MODELVIEW);
+        glEnable(GL_DEPTH_TEST);
+        glClearColor(0, 0, 0, 1);
+    }
+    
+    function doKeyDown(evt) {
+        let key = evt.keyCode;
+        if (key == 49) { // Key 1 pressed
+            currentFunction = 1;
+            display();
+        } else if (key == 50) { // Key 2 pressed
+            currentFunction = 2;
+            display();
+        } else if (key == 37) // left
+            rotateY -= 15;
+        else if (key == 39) // right
+            rotateY += 15;
+        else if (key == 40) // down
+            rotateX += 15;
+        else if (key == 38) // up
+            rotateX -= 15;
+        else if (key == 33) // page up
+            rotateZ += 15;
+        else if (key == 34) // page down
+            rotateZ -= 15;
+        else if (key == 36)  // home
+            rotateX = rotateY = rotateZ = 0;
+        if (key >= 34 && key <= 40 || key == 49 || key == 50) {
+            evt.preventDefault();
+        }
+        display();
+    }
+    
+    function init() {  
+        try {
+            let canvas = document.getElementById("glcanvas");
+            if (!canvas) {
+                throw "Canvas element with ID 'glcanvas' not found.";
+            }
+            glsimUse(canvas);
+        } catch (e) {
+            document.getElementById("canvas-holder").innerHTML =
+                "Sorry, an error occurred:<br>" + e;
+            return;
+        }
+        document.onkeydown = doKeyDown;
+        initGL();
+        display();
+    }
+
+</script>
+
+</head>
+
+<body onload="init()">
+
+<h3>Figury</h3>
+
+<p>Press 1 for Spiral, 2 for Pyramid. (Rotate using arrow keys, page up, page down, and home keys.)</p>
+
+<noscript>
+<p><b>Sorry, this page requires JavaScript!</b></p>
+</noscript>
+
+<div id="canvas-holder">
+    <canvas id="glcanvas" width="500" height="500"></canvas>
+</div>
+
+</body>
+</html>
